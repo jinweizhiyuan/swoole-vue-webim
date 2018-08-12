@@ -51,7 +51,6 @@
 
                 switch(msg.type){
                     case 'connect':
-                        console.log(msg.data);
                         _this.addUser(msg.data);
                         _this.setCount(msg.data.count);
                         break;

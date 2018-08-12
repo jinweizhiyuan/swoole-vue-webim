@@ -44,15 +44,19 @@ const extend = require('extend');
 const { Console } = require('console');
 const WS = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
+const DEBUG = false;
+
 const logger = new Console(process.stdout, process.stderr);
 var _log = logger.log;
 logger.log = function(msg) {
-    if (typeof(msg) == "string") {
-        _log(`===${msg}===`);
-    } else {
-        // _log('===logger start===');
-        _log(msg);
-        // _log('===logger end===')
+    if (DEBUG) {
+        if (typeof(msg) == "string") {
+            _log(`===${msg}===`);
+        } else {
+            // _log('===logger start===');
+            _log(msg);
+            // _log('===logger end===')
+        }
     }
 }
 
@@ -88,38 +92,40 @@ var server = net.Server(function(socket) {
         logger.log('socket connect');
         // logger.log(arguments);
     });
-    socket.setEncoding('utf-8');
+    // socket.setEncoding('utf-8');
     socket.on('close', function() {
         logger.log('socket close');
-        let msg = buildMsg({
-            id: key,
-            'count': table.size
-        }, DISCONNECT_TYPE);
-        task({
-            'to': [],
-            'except': [key],
-            'data': msg
-        });
-        table.delete(key);
+        // let msg = buildMsg({
+        //     id: KEY,
+        //     'count': table.size
+        // }, DISCONNECT_TYPE);
+        // task({
+        //     'to': [],
+        //     'except': [KEY],
+        //     'data': msg
+        // });
+        // logger.log(table);
+        // logger.log(KEY);
+        
     });
 
-    let key;
+    let KEY;
     let avatar, nickname;
     socket.on('data', function(e) {
         logger.log('socket data');
 
-        if (!key) {
-            //获取socket key
-            key = e.toString().match(/Sec-WebSocket-Key: (.+)/)[1];
-            key = crypto.createHash('sha1').update(key + WS).digest('base64');
+        if (!KEY) {
+            //获取socket KEY
+            KEY = e.toString().match(/Sec-WebSocket-Key: (.+)/)[1];
+            KEY = crypto.createHash('sha1').update(KEY + WS).digest('base64');
             socket.write('HTTP/1.1 101 Switching Protocols\r\n');
             socket.write('Upgrade: websocket\r\n');
             socket.write('Connection: Upgrade\r\n');
-            socket.write('Sec-WebSocket-Accept: ' + key + '\r\n');
+            socket.write('Sec-WebSocket-Accept: ' + KEY + '\r\n');
             // socket.write('Sec-WebSocket-Protocol: chat\r\n');
             socket.write('\r\n');
 
-            clients.set(key, socket);
+            clients.set(KEY, socket);
 
             let _random = Math.floor(Math.random() * avatars.length);
             avatar = avatars[_random];
@@ -127,20 +133,20 @@ var server = net.Server(function(socket) {
 
             //init selfs data
             logger.log('init selfs data');
-            table.set(key, {
-                'id': key,
+            table.set(KEY, {
+                'id': KEY,
                 'avatar': avatar,
                 'nickname': nickname
             });
             let userMsg = buildMsg({
-                'id': key,
+                'id': KEY,
                 'avatar': avatar,
                 'nickname': nickname,
                 'count': table.size
             }, INIT_SELF_TYPE);
             // socket.write(encodeDataFrame());
             task({
-                'to': [key],
+                'to': [KEY],
                 'except': [],
                 'data': userMsg
             });
@@ -153,7 +159,7 @@ var server = net.Server(function(socket) {
             }
             let otherMsg = buildMsg(others, INIT_OTHER_TYPE);
             task({
-                'to': [key],
+                'to': [KEY],    
                 'except': [],
                 'data': otherMsg
             })
@@ -161,30 +167,31 @@ var server = net.Server(function(socket) {
             //broadcast a user is online
             logger.log('broadcast a user is online');
             let msg = buildMsg({
-                'id': key,
+                'id': KEY,
                 'avatar': avatar,
                 'nickname': nickname,
                 'count': table.size
             }, CONNECT_TYPE);
             task({
                 'to': [],
-                'except': [key],
+                'except': [KEY],
                 'data': msg
             })
         } else {
             logger.log('receive message');
-            try {
+            // try {
                 logger.log('receive message 1');
-                logger.log(decodeDataFrame(e))
-                let receive = decodeDataFrame(e).PayloadData;
-                logger.log(typeof(receive));
-                // receive.data.data = JSON.parse(receive.data.data.toString('utf8'));
-                // logger.log(decodeDataFrame(receive));
-                logger.log(receive.toString('utf8') + 000);
-                let msg = buildMsg(receive, MESSAGE_TYPE);
+                let data = decodeDataFrame(e);
+                logger.log(data);
+                if (data.Opcode == 8) {
+                    task({to:[], except:[], data:{}}, {Opcode:8});
+                    return;
+                }
+                let receive = data.PayloadData;
+                let msg = buildMsg(JSON.parse(receive), MESSAGE_TYPE);
                 msg = {
                     'to': [],
-                    'except': [key],
+                    'except': [KEY],
                     'data': msg
                 };
                 if (receive.to && receive.to != 0) {
@@ -192,9 +199,9 @@ var server = net.Server(function(socket) {
                 }
                 task(msg);
                 logger.log('receive message 2');
-            } catch (e) {
-                logger.log(e);
-            }
+            // } catch (e) {
+            //     logger.log(e);
+            // }
         }
     });
 
@@ -206,33 +213,55 @@ var server = net.Server(function(socket) {
         logger.log('socket end')
     })
 
-    function task(data, marker = {
-        FIN: 1,
-        Opcode: 1
-    }) {
-        var out = extend(true, {}, marker),
+    function task(data, marker) {
+        var _marker = extend(true, {FIN: 1, Opcode: 1}, marker),
+            out = extend(true, {}, _marker),
             _clients = [];
         
         for (let c of clients.keys()) {
             _clients.push(c);
         }
         // if (Buffer.isBuffer(data.data)) data.data = data.data.toString('utf-8');
-        out.PayloadData = JSON.stringify(data.data);
+        // if (typeof(data.data) != "string") {
+            out.PayloadData = JSON.stringify(data.data);
+        // } else {
+        //     out.PayloadData = data.data;
+        // }
+        // logger.log(out.PayloadData);
+        logger.log(out);
         out = encodeDataFrame(out);
 
         if (data.to.length > 0) {
             _clients = data.to;
         }
-        logger.log(data);
-        logger.log(clients.size);
+        // logger.log(data);
+        // logger.log(clients.size);
         logger.log(_clients);
-        _clients && _clients.length && _clients.forEach(function(value, key, map) {
-            if (data.except.findIndex(v => v = key) == -1) {
-                // logger.log(clients);
-                logger.log(value);
-                clients.get(value).write(out);
-            }
-        });
+        
+        if (_marker.Opcode == 8) {
+            // logger.log('opcode 8')
+            clients.delete(KEY);
+            let msg = buildMsg({
+                id: KEY,
+                'count': table.size
+            }, DISCONNECT_TYPE);
+            task({
+                'to': [],
+                'except': [KEY],
+                'data': msg
+            });
+            table.delete(KEY);
+            // clients.get(KEY).write(out);
+        } else {
+            _clients && _clients.length && _clients.forEach(function(value, key, map) {
+                // logger.log(data.except + '>>>' + value);
+                // logger.log(data.except.findIndex(v => v == value));
+                if ((data.except.findIndex(v => v == value)) == -1) {
+                    // logger.log(value);
+                    clients.get(value).write(out);
+                }
+            });
+        }
     }
 });
 
