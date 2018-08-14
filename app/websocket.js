@@ -84,9 +84,11 @@ var nicknames = [
 
 var table = new Map();
 var clients = new Map();
+var guid = 20;
 
 var server = net.Server(function(socket) {
     logger.log('connectionListener');
+    guid++;
     // logger.log(socket);
     socket.on('connect', function() {
         logger.log('socket connect');
@@ -125,6 +127,8 @@ var server = net.Server(function(socket) {
             // socket.write('Sec-WebSocket-Protocol: chat\r\n');
             socket.write('\r\n');
 
+            KEY = guid;
+
             clients.set(KEY, socket);
 
             let _random = Math.floor(Math.random() * avatars.length);
@@ -156,13 +160,13 @@ var server = net.Server(function(socket) {
             let others = [];
             for (let row of table.values()) {
                 others.push(row);
-            }
+            };
             let otherMsg = buildMsg(others, INIT_OTHER_TYPE);
             task({
-                'to': [KEY],    
+                'to': [KEY],
                 'except': [],
                 'data': otherMsg
-            })
+            });
 
             //broadcast a user is online
             logger.log('broadcast a user is online');
@@ -176,32 +180,27 @@ var server = net.Server(function(socket) {
                 'to': [],
                 'except': [KEY],
                 'data': msg
-            })
+            });
         } else {
             logger.log('receive message');
-            // try {
-                logger.log('receive message 1');
-                let data = decodeDataFrame(e);
-                logger.log(data);
-                if (data.Opcode == 8) {
-                    task({to:[], except:[], data:{}}, {Opcode:8});
-                    return;
-                }
-                let receive = data.PayloadData;
-                let msg = buildMsg(JSON.parse(receive), MESSAGE_TYPE);
-                msg = {
-                    'to': [],
-                    'except': [KEY],
-                    'data': msg
-                };
-                if (receive.to && receive.to != 0) {
-                    msg.to = [receive.to]
-                }
-                task(msg);
-                logger.log('receive message 2');
-            // } catch (e) {
-            //     logger.log(e);
-            // }
+            let data = decodeDataFrame(e);
+            logger.log(data);
+            if (data.Opcode == 8) {
+                task({to:[], except:[], data:{}}, {Opcode:8});
+                return;
+            }
+            let receive = data.PayloadData;
+            let msg = buildMsg(JSON.parse(receive), MESSAGE_TYPE);
+            msg = {
+                'to': [],
+                'except': [KEY],
+                'data': msg
+            };
+            if (receive.to && receive.to != 0) {
+                msg.to = [receive.to]
+            }
+            task(msg);
+            logger.log('receive message 2');
         }
     });
 
@@ -228,7 +227,7 @@ var server = net.Server(function(socket) {
         //     out.PayloadData = data.data;
         // }
         // logger.log(out.PayloadData);
-        logger.log(out);
+        // logger.log(out);
         out = encodeDataFrame(out);
 
         if (data.to.length > 0) {
@@ -236,11 +235,12 @@ var server = net.Server(function(socket) {
         }
         // logger.log(data);
         // logger.log(clients.size);
-        logger.log(_clients);
+        // logger.log(_clients);
         
         if (_marker.Opcode == 8) {
             // logger.log('opcode 8')
             clients.delete(KEY);
+            table.delete(KEY);
             let msg = buildMsg({
                 id: KEY,
                 'count': table.size
@@ -250,7 +250,6 @@ var server = net.Server(function(socket) {
                 'except': [KEY],
                 'data': msg
             });
-            table.delete(KEY);
             // clients.get(KEY).write(out);
         } else {
             _clients && _clients.length && _clients.forEach(function(value, key, map) {
@@ -277,10 +276,10 @@ server.on('close', function() {
     logger.log('close');
 });
 
-server.on('error', function(e) {
+server.on('error', function (e) {
     logger.log('error');
     logger.error(e);
-})
+});
 
 server.listen(9501, '127.0.0.1', function() {
     // logger.log(arguments);
