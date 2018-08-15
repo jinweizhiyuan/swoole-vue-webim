@@ -1,10 +1,12 @@
 <template>
+<div>
     <div class="user-text">
         <textarea name="" id="" placeholder="Press enter to send" v-model="content" v-on:keyup.enter="send"></textarea>
     </div>
     <div class="text-footer">
         <button v-on:click="send">发送</button>
     </div>
+</div>
 </template>
 
 

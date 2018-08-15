@@ -5,7 +5,7 @@ import Auth from './Auth.vue'
 Vue.config.debug = true;
 
 new Vue({
-    el: 'body',
+    el: '#app',
     components: { App, Auth },
     data : {
         currentView : 'App'

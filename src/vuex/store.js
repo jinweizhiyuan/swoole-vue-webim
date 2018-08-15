@@ -85,7 +85,8 @@ const mutations = {
     REMOVE_USER: (state, userId) => {
         state.users.forEach((item,index) => {
             if (item.id == userId) {
-                state.users.$remove(item);
+                var index = state.users.indexOf(item);
+                state.users.splice(index, 1)
             }
         });
     },
@@ -129,7 +130,7 @@ const mutations = {
 
             state.broadcast[ 0 ].push(msg);
 
-            state.broadcast.$set(0,state.broadcast[0]);
+            Vue.set(state.broadcast, 0, state.broadcast[0])
         }else{
             if (message.is_self == 1) {
                 message.from = message.to;
@@ -142,7 +143,7 @@ const mutations = {
 
             state.broadcast[ message.from ].push(msg);
 
-            state.broadcast.$set(message.from,state.broadcast[ message.from ]);
+            Vue.set(state.broadcast, message.from, state.broadcast[message.from]);
         }
 
     },

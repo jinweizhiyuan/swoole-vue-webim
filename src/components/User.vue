@@ -6,7 +6,7 @@
             <div class="dot" v-bind:class="[ online ? 'dot-green' : 'dot-red' ]"></div>
         </div>
         <div class="search">
-            <input type="text" placeholder="Search" v-on:keyup="onKeyup | debounce 300">
+            <input type="text" placeholder="Search" v-on:keyup="onKeyup">
         </div>
     </div>
 </template>
@@ -14,16 +14,32 @@
 <script>
     import actions from '../vuex/actions'
     import getters from '../vuex/getters'
+    import _ from 'lodash'
 
     export default {
         vuex: {
             getters : getters,
             actions : actions
         },
+        data: {
+            searchQueryIsDirty: false
+        },
         methods: {
             onKeyup (e) {
+                this.searchQueryIsDirty = true
+                this.expensiveOperation(e.target.value)
                 this.searchUser(e.target.value);
-            }
+            },
+            // 这是 debounce 实现的地方。
+            expensiveOperation: _.debounce(function (v) {
+                // this.isCalculating = true
+                this.searchUser(v);
+                this.searchQueryIsDirty = false
+                // setTimeout(function () {
+                //     this.isCalculating = false
+                //     this.searchQueryIsDirty = false
+                // }.bind(this), 1000)
+            }, 500)
         }
     }
 </script>

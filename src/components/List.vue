@@ -1,7 +1,7 @@
 <template>
     <div class="list">
         <ul>
-            <li v-for="user in users | filterBy filterUser in 'nickname'" track-by="id" v-bind:id="user.id" v-on:click="changeSession(user.id)">
+            <li v-for="user in filterUserFun" v-bind:key="user.id" v-bind:id="user.id" v-on:click="changeSession(user.id)">
                 <img v-bind:src="user.avatar" v-bind:alt="user.name">
                 <p>{{ user.nickname }} <span v-if="user.id == 0">({{ currentCount }})</span></p>
                 <div v-bind:class="[ user.has_message ? 'dot' : '' ]"></div>
@@ -25,6 +25,14 @@
                     this.selectSession(userId);
                     this.setHasMessageStatus(userId,false);
                 }
+            }
+        },
+        computed : {
+            filterUserFun() {
+                var self = this;
+                return self.users.filter(function(user) {
+                    return user.nickname.indexOf(self.filterUser) !== -1
+                });
             }
         }
     }
